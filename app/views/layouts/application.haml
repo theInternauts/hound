@@ -14,6 +14,9 @@
       .flash{ class: key }
         = value
 
+    - if content_for?(:modal)
+      = yield :modal
+
     .content
       = yield
 

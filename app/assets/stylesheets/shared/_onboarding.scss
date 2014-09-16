@@ -1,0 +1,17 @@
+.onboarding-steps {
+  .step {
+    @include clearfix;
+  }
+
+  figure {
+    border: 1px solid $base-border-color;
+    border-radius: 3px;
+    float: left;
+    margin-right: 1em;
+    width: 300px;
+  }
+
+  img {
+    width: 100%;
+  }
+}

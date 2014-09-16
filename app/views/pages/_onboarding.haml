@@ -1,0 +1,26 @@
+- content_for :modal do
+  .modal
+    .modal-content
+      %h2.modal-title You've activated Hound on your first repo
+      .onboarding-steps
+        .step.step-activate
+          %figure
+            = image_tag('landing/step-activate.png')
+          %h3 Activate Repos
+          %p Tell Hound which GitHub repos to watch.
+
+        .step.step-code
+          %figure
+            = image_tag('landing/step-code.png')
+          %h3 Commit &amp; Pull Request Code
+          %p
+            Write and commit code as you normally would then
+            open a pull request to get reviewed by Hound.
+
+        .step.step-comment
+          %figure
+            = image_tag('landing/step-comment.png')
+          %h3 View Hound Comments
+          %p
+            Hound will review your pull request and make inline comments on
+            any style guide violations.

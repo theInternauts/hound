@@ -1,0 +1,21 @@
+.modal {
+  @include position(absolute, 0px 0px 0px 0px);
+  z-index: 4;
+
+  &:before {
+    @include position(fixed, 0px 0px 0px 0px);
+    background: #000;
+    content: '';
+    display: block;
+    opacity: .5;
+    z-index: -1;
+  }
+}
+
+.modal-content {
+  background-color: #FFF;
+  border-radius: 3px;
+  margin: 3em auto;
+  padding: 1em;
+  width: 60%;
+}
