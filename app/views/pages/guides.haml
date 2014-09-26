@@ -1,17 +1,18 @@
-%p
-  Wecome to the guides! Praesent commodo cursus magna, vel scelerisque nisl
-  consectetur et. Duis mollis, est non commodo luctus, nisi erat porttitor
-  ligula, eget lacinia odio sem nec elit.  Duis mollis, est non commodo luctus,
-  nisi erat porttitor ligula, eget lacinia odio sem nec elit.
+%main.content-doc
+  %p
+    Wecome to the guides! Praesent commodo cursus magna, vel scelerisque nisl
+    consectetur et. Duis mollis, est non commodo luctus, nisi erat porttitor
+    ligula, eget lacinia odio sem nec elit.  Duis mollis, est non commodo luctus,
+    nisi erat porttitor ligula, eget lacinia odio sem nec elit.
 
-%nav.guides-index-navigation
-  %dl
-    %dt
-      = link_to 'Getting Started', page_path('guides/getting-started'), class: 'guide-link'
-    %dd
-      Get Hound to start watching your repos and understand how to use Hound!
-  %dl
-    %dt
-      = link_to 'Configuring Hound', page_path('guides/configuration'), class: 'guide-link'
-    %dd
-      Learn which languages Hound supports and understand how to configure it.
+  %nav.guides-index-navigation
+    %dl
+      %dt
+        = link_to 'Getting Started', page_path('guides/getting-started'), class: 'guide-link'
+      %dd
+        Get Hound to start watching your repos and understand how to use Hound!
+    %dl
+      %dt
+        = link_to 'Configuring Hound', page_path('guides/configuration'), class: 'guide-link'
+      %dd
+        Learn which languages Hound supports and understand how to configure it.
