@@ -1,0 +1,6 @@
+- content_for :content do
+  = render 'shared/guides_header'
+  = yield
+  = render 'shared/footer'
+
+= render template: 'layouts/application'

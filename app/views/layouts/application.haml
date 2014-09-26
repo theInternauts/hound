@@ -15,7 +15,11 @@
         = value
 
     .content
-      = yield
+      - if content_for? :content
+        = yield :content
+      - else
+        = yield
+
 
     = javascript_tag do
       = yield :javascript
