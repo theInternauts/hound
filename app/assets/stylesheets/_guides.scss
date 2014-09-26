@@ -1,4 +1,22 @@
+.guides-header {
+  .logo {
+    font-size: 1.5em;
+
+    a {
+      @include transition(none);
+      padding: 0;
+
+      &:hover {
+        border: none;
+        color: inherit;
+      }
+    }
+  }
+}
+
 .guides-index-navigation {
+  @include clearfix;
+
   .guide-link {
     padding: 0;
   }
