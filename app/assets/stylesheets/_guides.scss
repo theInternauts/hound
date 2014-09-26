@@ -1,0 +1,16 @@
+.guides-index-navigation {
+  .guide-link {
+    padding: 0;
+  }
+
+  dl {
+    @include span-columns(6);
+    @include omega(2n);
+  }
+
+  dd {
+    font-size: .85em;
+    margin: 0;
+    line-height: 1.4em;
+  }
+}

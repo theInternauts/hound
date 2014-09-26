@@ -6,9 +6,11 @@
 @import 'variables';
 @import 'animations';
 @import 'base';
-@import 'sessions-new';
-@import 'repo-list';
-@import 'account';
 
 @import 'shared/footer';
+
+@import 'account';
+@import 'guides';
 @import 'header';
+@import 'repo-list';
+@import 'sessions-new';
