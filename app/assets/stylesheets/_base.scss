@@ -23,6 +23,20 @@ body {
   margin-top: 3em;
   padding-bottom: 2em;
 
+  figure {
+    @include clearfix;
+
+    img {
+      @include span-columns(6);
+      border: 1px solid $base-border-color;
+      border-radius: 3px;
+    }
+
+    figcaption {
+      @include span-columns(6);
+    }
+  }
+
   p {
     padding-bottom: 1em;
   }
