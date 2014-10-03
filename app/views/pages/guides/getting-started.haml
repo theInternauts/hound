@@ -1,22 +1,29 @@
 %main.content-doc
   %h2 Getting Started
 
-  %h3 Activate Repos
-  %figure
-    = image_tag('landing/step-activate.png')
-    %figcaption
-      Tell Hound which GitHub repos to watch.
+  %p
+    Hound watches your repos for coding style issues and comments inline on
+    your pull request.
 
-  %h3 Commit &amp; Pull Request Code
-  %figure
-    = image_tag('landing/step-code.png')
-    %figcaption
-      Write and commit code as you normally would then
-      open a pull request to get reviewed by Hound.
+  %h3 Turning Hound on a Repo
 
-  %h3 View Hound Comments
   %figure
-    = image_tag('landing/step-comment.png')
+    = image_tag('guides/getting-started/activation.png')
     %figcaption
-      Hound will review your pull request and make inline comments on
-      any style guide violations.
+      On your #{link_to "Repos", "#"} page, search for the repository that you
+      would like Hound to watch and click on the toggle switch. The activation
+      is successful if the switch turns green.
+
+  %h3 Open a pull request to start Hound
+
+  %p
+    Hound waits until you open a pull request before checking for style
+    violations. Once a PR is open, Hound will check the lines that are changed
+    for violations and comment on them inline.
+
+  %p
+    If Hound doesn't comment, then that means there were no style guide
+    violations!
+
+  %figure.full
+    = image_tag('guides/getting-started/hound-comment.png')
