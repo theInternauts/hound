@@ -119,7 +119,7 @@ class GithubApi
   end
 
   def find_team(name, repo)
-    client.org_teams(repo.organization.login).detect do |team|
+    client.org_teams(repo.organization.login, headers: { cache_control: "max-age=0, no-cache, no-store"}).detect do |team|
       team.name == name
     end
   end
