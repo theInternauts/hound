@@ -227,7 +227,7 @@ describe GithubApi do
   end
 end
 
-describe GithubApi, "#add_comment" do
+describe GithubApi, "#add_pull_request_comment" do
   it "adds comment to GitHub" do
     api = GithubApi.new("authtoken")
     repo_name = "test/repo"
@@ -246,7 +246,7 @@ describe GithubApi, "#add_comment" do
       patch_position
     )
 
-    api.add_comment(
+    api.add_pull_request_comment(
       pull_request_number: pull_request_number,
       commit: commit,
       comment: "test comment",
