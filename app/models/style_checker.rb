@@ -11,6 +11,11 @@ class StyleChecker
     @violations ||= Violations.new.push(*violations_in_checked_files).to_a
   end
 
+  def has_config_errors?
+    config.validate
+    config.errors.any?
+  end
+
   private
 
   attr_reader :pull_request, :style_guides

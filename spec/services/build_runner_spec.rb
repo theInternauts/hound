@@ -64,6 +64,25 @@ describe BuildRunner, '#run' do
       expect(PullRequest).to have_received(:new).
         with(payload, ENV["HOUND_GITHUB_TOKEN"])
     end
+
+    context "with invalid config" do
+      it "comments on invalid config" do
+        error_messages = "config is invalid"
+        build_runner = make_build_runner
+        style_checker = stubbed_style_checker_with_violations_and_config_errors
+        commenter = stubbed_commenter
+        pull_request = stubbed_pull_request
+        allow(style_checker).to receive(:config_error_messages).
+          and_return(error_messages)
+        allow(pull_request).to receive(:add_comment)
+        allow(commenter).to receive(:comment_on_violations)
+
+        build_runner.run
+
+        expect(pull_request).to have_received(:add_comment).
+          with(error_messages)
+      end
+    end
   end
 
   context 'without active repo' do
@@ -104,9 +123,19 @@ describe BuildRunner, '#run' do
 
   def stubbed_style_checker_with_violations
     violations = [double(:violation)]
-    style_checker = double(:style_checker, violations: violations)
+    style_checker = double(
+      :style_checker,
+      violations: violations,
+      has_config_errors?: false
+    )
     allow(StyleChecker).to receive(:new).and_return(style_checker)
 
+    style_checker
+  end
+
+  def stubbed_style_checker_with_violations_and_config_errors
+    style_checker = stubbed_style_checker_with_violations
+    allow(style_checker).to receive(:has_config_errors?).and_return(true)
     style_checker
   end
 

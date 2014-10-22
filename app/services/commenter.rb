@@ -1,4 +1,3 @@
-# Print violation messages as comments on given GitHub pull request.
 class Commenter
   pattr_initialize :pull_request
 

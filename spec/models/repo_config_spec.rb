@@ -133,6 +133,32 @@ describe RepoConfig do
     end
   end
 
+  describe "#validate" do
+    context "when config has formatting errors" do
+      it "adds errors" do
+        config = config_for_file("javascript.json", <<-EOS.strip_heredoc)
+          {
+            "predef" => ["myGlobal",]
+          }
+        EOS
+
+        expect { config.validate }.to change { config.errors.size }.by(1)
+      end
+    end
+
+    context "when config does not have formatting errors" do
+      it "does not add errors" do
+        config = config_for_file("javascript.json", <<-EOS.strip_heredoc)
+          {
+            "predef": ["myGlobal"]
+          }
+        EOS
+
+        expect { config.validate }.to change { config.errors.size }.by(0)
+      end
+    end
+  end
+
   describe "#for" do
     context "when ruby config file is specified" do
       it "returns parsed config" do
@@ -212,9 +238,10 @@ describe RepoConfig do
         )
       end
     end
+  end
 
-    def config_for_file(file_path, content)
-      hound_config = <<-EOS.strip_heredoc
+  def config_for_file(file_path, content)
+    hound_config = <<-EOS.strip_heredoc
         ruby:
           enabled: true
           config_file: config/rubocop.yml
@@ -226,15 +253,14 @@ describe RepoConfig do
         java_script:
           enabled: true
           config_file: javascript.json
-      EOS
-      commit = double("Commit")
-      config = RepoConfig.new(commit)
-      allow(commit).to receive(:file_content).
-        with(RepoConfig::HOUND_CONFIG_FILE).and_return(hound_config)
-      allow(commit).to receive(:file_content).
-        with(file_path).and_return(content)
+    EOS
+    commit = double("Commit")
+    config = RepoConfig.new(commit)
+    allow(commit).to receive(:file_content).
+      with(RepoConfig::HOUND_CONFIG_FILE).and_return(hound_config)
+    allow(commit).to receive(:file_content).
+      with(file_path).and_return(content)
 
-      config
-    end
+    config
   end
 end

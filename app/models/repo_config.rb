@@ -7,7 +7,12 @@ class RepoConfig
   HOUND_CONFIG_FILE = ".hound.yml"
   STYLE_GUIDES = %w(ruby coffee_script java_script)
 
-  pattr_initialize :commit
+  attr_reader :errors
+
+  def initialize(commit)
+    @commit = commit
+    @errors = []
+  end
 
   def enabled_for?(style_guide_name)
     style_guide_name == "ruby" && legacy_config? ||
@@ -28,7 +33,14 @@ class RepoConfig
     end
   end
 
+  def validate
+    errors.clear
+    validate_style_guide_configs
+  end
+
   private
+
+  attr_reader :commit
 
   def enabled_in_config?(name)
     config = hound_config[name] || hound_config[name.camelize]
@@ -69,12 +81,22 @@ class RepoConfig
   def parse_yaml(content)
     YAML.load(content)
   rescue Psych::SyntaxError
+    errors << I18n.t("invalid_config")
     {}
   end
 
   def parse_json(content)
     JSON.parse(content)
   rescue JSON::ParserError
+    errors << I18n.t("invalid_config")
     {}
+  end
+
+  def validate_style_guide_configs
+    config_file_path = config_path_for("java_script")
+
+    if config_file_path
+      load_file(config_file_path)
+    end
   end
 end
