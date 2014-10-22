@@ -11,7 +11,7 @@ class PullRequest
       map { |file| build_commit_file(file) }
   end
 
-  def add_comment(violation)
+  def comment_on_violation(violation)
     api.add_comment(
       pull_request_number: number,
       comment: violation.messages.join("<br>"),
