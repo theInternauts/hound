@@ -78,7 +78,7 @@ describe PullRequest do
   describe "#comment_on_violation" do
     it "posts a comment to GitHub for the Hound user" do
       payload = payload_stub
-      github = double(:github_client, add_comment: nil)
+      github = double(:github_client, add_pull_request_comment: nil)
       pull_request = pull_request_stub(github, payload)
       violation = violation_stub
       commit = double("Commit")
@@ -86,7 +86,7 @@ describe PullRequest do
 
       pull_request.comment_on_violation(violation)
 
-      expect(github).to have_received(:add_comment).with(
+      expect(github).to have_received(:add_pull_request_comment).with(
         pull_request_number: payload.pull_request_number,
         commit: commit,
         comment: violation.messages.first,

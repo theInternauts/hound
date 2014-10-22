@@ -20,7 +20,7 @@ class PullRequest
   end
 
   def comment_on_violation(violation)
-    api.add_comment(
+    api.add_pull_request_comment(
       pull_request_number: number,
       comment: violation.messages.join("<br>"),
       commit: head_commit,
