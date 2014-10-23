@@ -93,7 +93,6 @@ class RepoConfig
   def validate_style_guide_configs
     STYLE_GUIDES.each do |style_guide|
       file_path = config_path_for(style_guide)
-      debugger
       config_file_content = commit.file_content(file_path)
       extension = File.extname(file_path)
 
