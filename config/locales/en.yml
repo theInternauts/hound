@@ -7,4 +7,4 @@ en:
   authenticate: 'Sign In with GitHub'
   active_repos: 'Active repos'
   search_placeholder: 'search by repo or organization name'
-  invalid_config: "Syntax errors in your custom config were detected."
+  invalid_config: "Syntax errors in your %{language} config were detected."

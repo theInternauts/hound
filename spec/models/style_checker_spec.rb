@@ -205,32 +205,6 @@ describe StyleChecker do
     end
   end
 
-  describe "#has_config_errors?" do
-    context "when repo config is invalid" do
-      it "returns true" do
-        file = stub_commit_file("test.js", "var test = 'test'")
-        pull_request = stub_pull_request(pull_request_files: [file])
-        repo_config = double(:repo_config, validate: true, errors: ["error"])
-        allow(RepoConfig).to receive(:new).and_return(repo_config)
-        style_checker = StyleChecker.new(pull_request)
-
-        expect(style_checker).to have_config_errors
-      end
-    end
-
-    context "when repo config is not invalid" do
-      it "returns false" do
-        file = stub_commit_file("test.js", "var test = 'test'")
-        pull_request = stub_pull_request(pull_request_files: [file])
-        repo_config = double(:repo_config, validate: true, errors: [])
-        allow(RepoConfig).to receive(:new).and_return(repo_config)
-        style_checker = StyleChecker.new(pull_request)
-
-        expect(style_checker).not_to have_config_errors
-      end
-    end
-  end
-
   private
 
   def stub_pull_request(options = {})

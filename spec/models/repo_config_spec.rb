@@ -257,9 +257,9 @@ describe RepoConfig do
     commit = double("Commit")
     config = RepoConfig.new(commit)
     allow(commit).to receive(:file_content).
-      with(RepoConfig::HOUND_CONFIG_FILE).and_return(hound_config)
-    allow(commit).to receive(:file_content).
       with(file_path).and_return(content)
+    allow(commit).to receive(:file_content).
+      with(RepoConfig::HOUND_CONFIG_FILE).and_return(hound_config)
 
     config
   end

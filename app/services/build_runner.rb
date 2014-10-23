@@ -21,9 +21,15 @@ class BuildRunner
   end
 
   def validate_config
-    if style_checker.has_config_errors?
-      pull_request.add_comment(style_checker.config_error_messages)
+    repo_config.validate
+
+    if repo_config.errors.any?
+      pull_request.add_comment(repo_config.errors.to_sentence)
     end
+  end
+
+  def repo_config
+    @repo_config ||= RepoConfig.new(pull_request)
   end
 
   def violations
