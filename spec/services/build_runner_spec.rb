@@ -66,7 +66,7 @@ describe BuildRunner, '#run' do
     end
 
     context "with invalid config" do
-      it "comments on invalid config" do
+      it "comments on pull request" do
         error_messages = "config is invalid"
         build_runner = make_build_runner
         style_checker = stubbed_style_checker_with_violations_and_config_errors
