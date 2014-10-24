@@ -78,35 +78,31 @@ class RepoConfig
     end
   end
 
-  def parse_yaml(content, error_callback = {})
+  def parse_yaml(content)
     YAML.load(content)
   rescue Psych::SyntaxError
-    error_callback
+    {}
   end
 
-  def parse_json(content, error_callback = {})
+  def parse_json(content)
     JSON.parse(content)
   rescue JSON::ParserError
-    error_callback
+    {}
   end
 
   def validate_style_guide_configs
     STYLE_GUIDES.each do |style_guide|
-      file_path = config_path_for(style_guide)
-      config_file_content = commit.file_content(file_path)
-      extension = File.extname(file_path)
-
-      if config_file_content.present?
-        send(
-          "parse_#{FILE_TYPES[extension]}",
-          config_file_content,
-          add_config_error(style_guide)
+      if enabled_for?(style_guide) && self.for(style_guide).empty?
+        error_message = I18n.t(
+          "invalid_config",
+          config_file_name: config_path_for(style_guide)
         )
+        add_error(error_message)
       end
     end
   end
 
-  def add_config_error(style_guide)
-    errors < I18n.t("invalid_config", language: style_guide)
+  def add_error(message)
+    errors << message
   end
 end
