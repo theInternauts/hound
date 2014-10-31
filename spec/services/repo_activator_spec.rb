@@ -4,13 +4,13 @@ describe RepoActivator do
   describe '#activate' do
     context 'when repo activation succeeds' do
       it 'activates repo' do
-        github_token = 'githubtoken'
+        user_github_token = "githubtoken"
         repo = create(:repo)
         stub_github_api
         activator = RepoActivator.new
 
-        expect(activator.activate(repo, github_token)).to be_truthy
-        expect(GithubApi).to have_received(:new).with(github_token)
+        expect(activator.activate(repo, user_github_token)).to be_truthy
+        expect(GithubApi).to have_received(:new).with(user_github_token)
         expect(repo.reload).to be_active
       end
 
@@ -80,12 +80,13 @@ describe RepoActivator do
       end
 
       it 'only swallows Octokit errors' do
-        github_token = 'githubtoken'
+        user_github_token = "githubtoken"
         repo = double('repo')
         expect(GithubApi).to receive(:new).and_raise(Exception.new)
         activator = RepoActivator.new
 
-        expect { activator.activate(repo, github_token) }.to raise_error(Exception)
+        expect { activator.activate(repo, user_github_token) }.
+          to raise_error(Exception)
       end
 
       context 'when Hound cannot be added to repo' do
@@ -119,14 +120,14 @@ describe RepoActivator do
     context 'when repo activation succeeds' do
       it 'deactivates repo' do
         stub_github_api
-        github_token = 'githubtoken'
+        user_github_token = "githubtoken"
         repo = create(:repo)
         create(:membership, repo: repo)
         activator = RepoActivator.new
 
-        activator.deactivate(repo, github_token)
+        activator.deactivate(repo, user_github_token)
 
-        expect(GithubApi).to have_received(:new).with(github_token)
+        expect(GithubApi).to have_received(:new).with(user_github_token)
         expect(repo.active?).to be_falsy
       end
 

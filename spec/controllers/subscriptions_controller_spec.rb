@@ -3,13 +3,14 @@ require "spec_helper"
 describe SubscriptionsController, "#create" do
   context "when subscription succeeds" do
     it "subscribes the user to the repo" do
+      token = "usergithubtoken"
       membership = create(:membership)
       repo = membership.repo
       activator = double(:repo_activator, activate: true)
       allow(RepoActivator).to receive(:new).and_return(activator)
       allow(RepoSubscriber).to receive(:subscribe).and_return(true)
       allow(JobQueue).to receive(:push)
-      stub_sign_in(membership.user)
+      stub_sign_in(membership.user, token)
 
       post(
         :create,
@@ -19,8 +20,7 @@ describe SubscriptionsController, "#create" do
         format: :json
       )
 
-      expect(activator).to have_received(:activate).
-        with(repo, AuthenticationHelper::GITHUB_TOKEN)
+      expect(activator).to have_received(:activate).with(repo, token)
       expect(RepoSubscriber).to have_received(:subscribe).
         with(repo, membership.user, "cardtoken")
       expect(analytics).to have_tracked("Subscribed Private Repo").
@@ -89,6 +89,7 @@ end
 
 describe SubscriptionsController, "#destroy" do
   it "deletes subscription associated with subscribing user" do
+    token = "usertoken"
     current_user = create(:user)
     subscribed_user = create(:user)
     membership = create(:membership, user: current_user)
@@ -97,7 +98,7 @@ describe SubscriptionsController, "#destroy" do
     activator = double(:repo_activator, deactivate: true)
     allow(RepoActivator).to receive(:new).and_return(activator)
     allow(RepoSubscriber).to receive(:unsubscribe).and_return(true)
-    stub_sign_in(current_user)
+    stub_sign_in(current_user, token)
 
     delete(
       :destroy,
@@ -106,8 +107,7 @@ describe SubscriptionsController, "#destroy" do
       format: :json
     )
 
-    expect(activator).to have_received(:deactivate).
-      with(repo, AuthenticationHelper::GITHUB_TOKEN)
+    expect(activator).to have_received(:deactivate).with(repo, token)
     expect(RepoSubscriber).to have_received(:unsubscribe).
       with(repo, subscribed_user)
     expect(analytics).to have_tracked("Unsubscribed Private Repo").
