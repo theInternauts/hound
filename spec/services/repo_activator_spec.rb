@@ -101,7 +101,6 @@ describe RepoActivator do
           token = "githubtoken"
           repo = build_stubbed(:repo, full_github_name: "test/repo")
           github = double(:github, add_user_to_repo: false)
-          allow(JobQueue).to receive(:push)
           allow(GithubApi).to receive(:new).and_return(github)
 
           result = RepoActivator.new(github_token: token, repo: repo).activate
