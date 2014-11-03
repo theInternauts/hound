@@ -88,7 +88,6 @@ describe RepoActivator do
       it 'only swallows Octokit errors' do
         token = "githubtoken"
         repo = build_stubbed(:repo)
-        allow(JobQueue).to receive(:push)
         expect(GithubApi).to receive(:new).and_raise(Exception.new)
 
         expect do
