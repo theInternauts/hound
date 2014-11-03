@@ -99,7 +99,7 @@ describe RepoActivator do
       context 'when Hound cannot be added to repo' do
         it 'returns false' do
           token = "githubtoken"
-          repo = build_stubbed(:repo, full_github_name: 'test/repo')
+          repo = build_stubbed(:repo, full_github_name: "test/repo")
           github = double(:github, add_user_to_repo: false)
           allow(JobQueue).to receive(:push)
           allow(GithubApi).to receive(:new).and_return(github)
