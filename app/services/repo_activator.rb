@@ -14,8 +14,7 @@ class RepoActivator
 
   def deactivate
     change_repository_state_quietly do
-      delete_webhook &&
-        repo.deactivate
+      delete_webhook && repo.deactivate
     end
   end
 
