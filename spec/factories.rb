@@ -3,7 +3,9 @@ FactoryGirl.define do
     repo
 
     trait :failed_build do
-      violations ['WhitespaceRule on line 34 of app/models/user.rb']
+      after(:create) do |repo|
+        build.violations << create(:violation)
+      end
     end
   end
 
@@ -55,5 +57,14 @@ FactoryGirl.define do
     price { repo.plan_price }
     repo
     user
+  end
+
+  factory :violation do
+    build
+
+    filename "the_thing.rb"
+    line Line.new(number: 1, content: "noop", patch_position: 1)
+    line_number 42
+    messages ["WhitespaceRule on line 34 of app/models/user.rb"]
   end
 end
