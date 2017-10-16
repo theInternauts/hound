@@ -1,0 +1,12 @@
+.app-footer {
+  padding: $large-spacing $base-spacing;
+  text-align: center;
+}
+
+.app-footer__nav {
+  margin-bottom: $base-spacing;
+}
+
+.app-footer__nav-link:not(:first-of-type) {
+  margin-left: $base-spacing;
+}

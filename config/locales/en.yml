@@ -1,9 +1,72 @@
-# Sample localization file for English. Add more files in this directory for other locales.
-# See https://github.com/svenfuchs/rails-i18n/tree/master/rails%2Flocale for starting points.
-
 en:
-  sync_repos: 'Refresh repo list'
-  syncing_repos: 'Loading repos...'
-  authenticate: 'Sign In with GitHub'
-  active_repos: 'Active repos'
-  search_placeholder: 'search by repo or organization name'
+  helpers:
+    label:
+      owner:
+        active_private_repos_count: Active private repos
+
+  sync_repos: "Refresh repo list"
+  include_private_repos: "Include private repos"
+  syncing_repos: "Loading..."
+  authenticate: "Sign In with GitHub"
+  sign_out: "Sign Out"
+  stop_masquerading: "Stop Masquerading"
+  active_repos: "Active repos"
+  search_placeholder: "Search by repo"
+  pending_status: "Hound is busy reviewing changes..."
+  cannot_activate_repo: "Only repo admins can activate"
+  complete_status:
+    zero: "No violations found. Woof!"
+    one: "1 violation found."
+    other: "%{count} violations found."
+  config_error_status:
+    "Error parsing config for: %{linter_name}. Click \"details\" for
+    assistance."
+  hound_error_status: "We've encountered an error while reviewing your code."
+
+  account:
+    billable_email:
+      invalid: "Email is invalid"
+
+  onboarding:
+    title: "Let's keep that code in style:"
+    step_one_title: "Activate Hound on a repo."
+    step_one_alt_title: "Hound is active on %{count} of your repos!"
+    step_one_desc:
+      "Hound watches for pull requests on all active repos.
+      Activating public repos is free; private repos are priced by tier."
+    step_one_link: "Details"
+    step_two_title: "Open a GitHub pull request on the active repo."
+    step_two_desc:
+      "Hound will review all GitHub pull requests that are
+      opened on an activated repo for violations of your style
+      guide."
+    step_three_title: "Hound comments on your pull request."
+    step_three_desc:
+      "If Hound finds any violations of your style guide it will
+      comment inline on the violation in your GitHub pull
+      request."
+
+  plans:
+    open_source:
+      allowance: "Unlimited Public Repos"
+      price_html: "$%{price} <small>month</small>"
+
+    private:
+      allowance_html: "Up to <strong>%{allowance}</strong> Repos"
+      price_html: "$%{price} <small>month</small>"
+
+  builds:
+    index:
+      new: "Rerun Build"
+
+  rebuilds:
+    create:
+      success: "Rebuild triggered"
+
+  home:
+    index:
+      title: "GitHub Code Review Tool for JS, Ruby, Swift, and more"
+      description:
+        "Hound is the GitHub code review tool the thoughtbot team wanted but
+        never got, so they built it. You can use it too. Now checking Ruby, JS,
+        Swift, CoffeeScript, Go, Elixir and more."

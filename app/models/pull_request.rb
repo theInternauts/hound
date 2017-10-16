@@ -1,23 +1,25 @@
+# frozen_string_literal: true
 class PullRequest
-  pattr_initialize :payload, :github_token
+  FILE_REMOVED_STATUS = "removed"
+  COMMENT_LINE_DELIMITER = "<br>"
+
+  pattr_initialize :payload, :token
 
   def comments
-    @comments ||= api.pull_request_comments(full_repo_name, number)
+    @comments ||= user_github.pull_request_comments(repo_name, number)
   end
 
-  def pull_request_files
-    @pull_request_files ||= api.
-      pull_request_files(full_repo_name, number).
-      map { |file| build_commit_file(file) }
+  def commit_files
+    @commit_files ||= modified_commit_files
   end
 
-  def add_comment(violation)
-    api.add_comment(
-      pull_request_number: number,
-      comment: violation.messages.join("<br>"),
-      commit: head_commit,
-      filename: violation.filename,
-      patch_position: violation.patch_position
+  def make_comments(violations, errors)
+    comments = violations.map { |violation| build_comment(violation) }
+    hound_github.create_pull_request_review(
+      repo_name,
+      number,
+      comments,
+      ReviewBody.new(errors).to_s,
     )
   end
 
@@ -30,24 +32,50 @@ class PullRequest
   end
 
   def head_commit
-    @head_commit ||= Commit.new(full_repo_name, payload.head_sha, api)
+    @head_commit ||= Commit.new(repo_name, payload.head_sha, user_github)
   end
 
   private
 
-  def build_commit_file(file)
-    CommitFile.new(file, head_commit)
+  def modified_commit_files
+    modified_github_files.map do |github_file|
+      CommitFile.new(
+        filename: github_file.filename,
+        patch: github_file.patch,
+        commit: head_commit,
+      )
+    end
   end
 
-  def api
-    @api ||= GithubApi.new(github_token)
+  def modified_github_files
+    github_files = user_github.pull_request_files(repo_name, number)
+
+    github_files.select do |github_file|
+      github_file.status != FILE_REMOVED_STATUS
+    end
+  end
+
+  def build_comment(violation)
+    {
+      path: violation.filename,
+      position: violation.patch_position,
+      body: violation.messages.join(COMMENT_LINE_DELIMITER),
+    }
+  end
+
+  def user_github
+    @user_github ||= GithubApi.new(token)
+  end
+
+  def hound_github
+    @hound_github ||= GithubApi.new(Hound::GITHUB_TOKEN)
   end
 
   def number
     payload.pull_request_number
   end
 
-  def full_repo_name
+  def repo_name
     payload.full_repo_name
   end
 end

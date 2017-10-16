@@ -1,4 +1,4 @@
-require "spec_helper"
+require "rails_helper"
 
 describe DeactivationsController, "#create" do
   context "when deactivation succeeds" do
@@ -8,18 +8,28 @@ describe DeactivationsController, "#create" do
       activator = double(:repo_activator, deactivate: true)
       allow(RepoActivator).to receive(:new).and_return(activator)
       stub_sign_in(membership.user)
-
-      post :create, repo_id: repo.id, format: :json
-
-      expect(response.code).to eq "201"
-      expect(response.body).to eq RepoSerializer.new(repo).to_json
-      expect(activator).to have_received(:deactivate).with(
+      expected_repo_json = RepoSerializer.new(
         repo,
-        AuthenticationHelper::GITHUB_TOKEN
-      )
-      expect(analytics).to have_tracked("Deactivated Public Repo").
+        scope_name: :current_user,
+        scope: membership.user,
+      ).to_json
+
+      post :create, params: { repo_id: repo.id }, format: :json
+
+      expect(response).to have_http_status(:created)
+      expect(response.body).to eq expected_repo_json
+      expect(activator).to have_received(:deactivate)
+      expect(RepoActivator).to have_received(:new).
+        with(repo: repo, github_token: membership.user.token)
+      expect(analytics).to have_tracked("Repo Deactivated").
         for_user(membership.user).
-        with(properties: { name: repo.full_github_name })
+        with(
+          properties: {
+            name: repo.name,
+            private: false,
+            revenue: -membership.user.next_plan_price,
+          }
+        )
     end
   end
 
@@ -31,42 +41,23 @@ describe DeactivationsController, "#create" do
       allow(RepoActivator).to receive(:new).and_return(activator)
       stub_sign_in(membership.user)
 
-      post :create, repo_id: repo.id, format: :json
+      post :create, params: { repo_id: repo.id }, format: :json
 
       expect(response.code).to eq "502"
-      expect(activator).to have_received(:deactivate).with(
-        repo,
-        AuthenticationHelper::GITHUB_TOKEN
-      )
-    end
-
-    it "notifies Sentry" do
-      membership = create(:membership)
-      repo = membership.repo
-      activator = double(:repo_activator, deactivate: false)
-      allow(RepoActivator).to receive(:new).and_return(activator)
-      allow(Raven).to receive(:capture_exception)
-      stub_sign_in(membership.user)
-
-      post :create, repo_id: repo.id, format: :json
-
-      expect(Raven).to have_received(:capture_exception).with(
-        DeactivationsController::FailedToActivate.new(
-          "Failed to deactivate repo"
-        ),
-        extra: { user_id: membership.user.id, repo_id: repo.id.to_s }
-      )
+      expect(activator).to have_received(:deactivate)
+      expect(RepoActivator).to have_received(:new).
+        with(repo: repo, github_token: membership.user.token)
     end
   end
 
   context "when repo has a subscription" do
     it "raises" do
-      repo = create(:repo, private: true)
+      user = create(:user)
+      repo = create(:repo, private: true, users: [user])
       create(:subscription, repo: repo)
-      user = repo.users.first
       stub_sign_in(user)
 
-      expect { post :create, repo_id: repo.id, format: :json }.
+      expect { post :create, params: { repo_id: repo.id }, format: :json }.
         to raise_error(
           DeactivationsController::CannotDeactivateRepoWithSubscription
         )
@@ -75,13 +66,13 @@ describe DeactivationsController, "#create" do
 
   context "when repo is private and does not have a subscription" do
     it "returns successful response" do
-      repo = create(:repo, private: true)
-      user = repo.users.first
+      user = create(:user)
+      repo = create(:repo, private: true, users: [user])
       activator = double(:repo_activator, deactivate: true)
       allow(RepoActivator).to receive(:new).and_return(activator)
       stub_sign_in(user)
 
-      post :create, repo_id: repo.id, format: :json
+      post :create, params: { repo_id: repo.id }, format: :json
 
       expect(response.code).to eq "201"
     end

@@ -10,54 +10,50 @@ class Analytics
     track(event: "Signed In")
   end
 
-  def track_activated(repo)
+  def track_repo_activation_failed(repo)
     track(
-      event: "Activated Public Repo",
+      event: "Repo Activation Failed",
       properties: {
-        name: repo.full_github_name
+        name: repo.name,
+        private: repo.private
       }
     )
   end
 
-  def track_deactivated(repo)
+  def track_repo_deactivated(repo)
     track(
-      event: "Deactivated Public Repo",
+      event: "Repo Deactivated",
       properties: {
-        name: repo.full_github_name
+        name: repo.name,
+        private: repo.private,
+        revenue: lost_revenue,
       }
     )
   end
 
-  def track_reviewed(repo)
+  def track_build_started(repo)
     track(
-      event: "Reviewed Repo",
+      event: "Build Started",
       properties: {
-        name: repo.full_github_name
+        name: repo.name,
+        private: repo.private,
       }
     )
   end
 
-  def track_subscribed(repo)
+  def track_build_completed(repo)
     track(
-      event: "Subscribed Private Repo",
+      event: "Build Completed",
       properties: {
-        name: repo.full_github_name,
-        revenue: repo.plan_price
-      }
-    )
-  end
-
-  def track_unsubscribed(repo)
-    track(
-      event: "Unsubscribed Private Repo",
-      properties: {
-        name: repo.full_github_name,
-        revenue: -repo.plan_price
+        name: repo.name,
+        private: repo.private,
       }
     )
   end
 
   private
+
+  attr_reader :user
 
   def track(options)
     backend.track({
@@ -66,5 +62,11 @@ class Analytics
     }.merge(options))
   end
 
-  attr_reader :user
+  def lost_revenue
+    if user.current_plan == user.next_plan
+      0
+    else
+      user.current_plan_price - user.next_plan_price
+    end
+  end
 end

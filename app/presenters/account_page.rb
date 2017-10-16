@@ -1,34 +1,59 @@
 class AccountPage
-  include ActionView::Helpers::NumberHelper
-
-  attr_reader :repos
-
-  def initialize(repos)
-    @repos = repos
+  def initialize(user)
+    @user = user
   end
 
-  def monthly_line_items
-    group_similarly_priced_repos.map do |price, repos|
-      MonthlyLineItem.new(price, repos)
+  def allowance
+    current_plan.allowance
+  end
+
+  def billable_email
+    user.billable_email
+  end
+
+  def monthly_line_item
+    MonthlyLineItem.new(subscription)
+  end
+
+  def plan
+    current_plan.title
+  end
+
+  def plans
+    Plan.all.map do |plan|
+      PlanPresenter.new(plan: plan, user: user)
     end
   end
 
+  def remaining
+    allowance - repo_count
+  end
+
+  def repos
+    subscribed_repos.order(:name)
+  end
+
+  def subscription
+    user.payment_gateway_subscription
+  end
+
   def total_monthly_cost
-    number_to_currency(
-      @repos.inject(0) { |sum, repo| sum += repo.subscription_price },
-      precision: 0
-    )
+    monthly_line_item.subtotal_in_dollars
   end
 
   private
 
-  def group_similarly_priced_repos
-    similarly_priced_repos = Hash.new { |hash, key| hash[key] = [] }
+  attr_reader :user
 
-    @repos.each do |repo|
-      similarly_priced_repos[repo.subscription_price] << repo
-    end
+  def current_plan
+    user.current_plan
+  end
 
-    similarly_priced_repos
+  def repo_count
+    subscribed_repos.count
+  end
+
+  def subscribed_repos
+    user.subscribed_repos
   end
 end

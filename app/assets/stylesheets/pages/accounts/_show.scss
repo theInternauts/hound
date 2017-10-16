@@ -1,0 +1,91 @@
+.account-section {
+  @extend %content-frame;
+  display: table;
+  position: relative;
+  width: 100%;
+}
+
+.account-content {
+  @extend %content-main;
+}
+
+.account-nav {
+  @extend %content-aside;
+
+  .message {
+    background: lighten($gold, 50%);
+    border: 1px solid lighten($gold, 3%);
+    border-radius: 3px;
+    clear: both;
+    color: darken($gold, 10%);
+    padding: 1em;
+  }
+}
+
+.billing-breakdown {
+  border-bottom: 1px dotted $base-border-color;
+  margin-bottom: 2em;
+  padding-bottom: 3em;
+
+  .update-card {
+    float: right;
+  }
+
+  .itemized-receipt,
+  .monthly-total {
+    th,
+    td {
+      &:last-child {
+        text-align: right;
+      }
+    }
+  }
+
+  .itemized-receipt {
+    margin-bottom: 2em;
+  }
+
+  .monthly-total {
+    label {
+      color: $base-font-color;
+    }
+
+    .total-amount {
+      font-size: 1em;
+      padding: 1em 1.2em;
+    }
+  }
+}
+
+.account-details {
+  @include clearfix;
+  border-bottom: 1px dotted $base-border-color;
+  margin-bottom: 2em;
+  padding-bottom: 3em;
+
+  input[type="text"],
+  input[type="email"] {
+    min-width: 20em;
+    padding: 0.5em;
+  }
+
+  .form-group {
+    float: left;
+
+    label {
+      display: block;
+    }
+  }
+
+  .form-actions {
+    float: right;
+    margin-top: 1.5em;
+    text-align: right;
+  }
+}
+
+.active-private-repos {
+  .repo {
+    display: table-row;
+  }
+}

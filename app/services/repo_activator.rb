@@ -1,51 +1,103 @@
 class RepoActivator
-  def activate(repo, github_token)
+  attr_reader :errors
+
+  def initialize(github_token:, repo:)
+    @github_token = github_token
+    @repo = repo
+    @errors = []
+  end
+
+  def activate
     change_repository_state_quietly do
-      github = GithubApi.new(github_token)
-      add_hound_to_repo(github, repo) &&
-        create_webhook(github, repo) &&
-        repo.activate
+      if repo.private?
+        add_hound_to_repo && create_webhook && repo.activate
+      else
+        create_webhook && repo.activate
+      end
     end
   end
 
-  def deactivate(repo, github_token)
-    change_repository_state_quietly do
-      github = GithubApi.new(github_token)
-      delete_webhook(github, repo) &&
-        repo.deactivate
+  def deactivate
+    if skip_github?
+      repo.deactivate
+    else
+      deactivate_with_github
     end
   end
 
   private
 
+  attr_reader :github_token, :repo
+
   def change_repository_state_quietly
     yield
   rescue Octokit::Error => error
+    add_error(error)
     Raven.capture_exception(error)
     false
   end
 
-  def create_webhook(github, repo)
-    github.create_hook(repo.full_github_name, builds_url) do |hook|
+  def skip_github?
+    repo.subscription.present? && missing_membership?
+  end
+
+  def missing_membership?
+    Membership.where(repo: repo, user: repo.subscription.user).empty?
+  end
+
+  def deactivate_with_github
+    change_repository_state_quietly do
+      if repo.private?
+        remove_hound_from_repo
+      end
+
+      delete_webhook && repo.deactivate
+    end
+  end
+
+  def remove_hound_from_repo
+    github.remove_collaborator(repo.name, Hound::GITHUB_USERNAME)
+  end
+
+  def add_hound_to_repo
+    github.add_collaborator(repo.name, Hound::GITHUB_USERNAME)
+    hound_github.accept_invitation(repo.name)
+  end
+
+  def hound_github
+    @hound_github ||= GithubApi.new(Hound::GITHUB_TOKEN)
+  end
+
+  def github
+    @github ||= GithubApi.new(github_token)
+  end
+
+  def create_webhook
+    github.create_hook(repo.name, builds_url) do |hook|
       repo.update(hook_id: hook.id)
     end
   end
 
-  def delete_webhook(github, repo)
-    github.remove_hook(repo.full_github_name, repo.hook_id) do
+  def delete_webhook
+    github.remove_hook(repo.name, repo.hook_id) do
       repo.update(hook_id: nil)
     end
   end
 
-  def add_hound_to_repo(github, repo)
-    github.add_user_to_repo(
-      ENV['HOUND_GITHUB_USERNAME'],
-      repo.full_github_name
-    )
+  def builds_url
+    URI.join("#{protocol}://#{Hound::HOST}", "builds").to_s
   end
 
-  def builds_url
-    protocol = ENV['ENABLE_HTTPS'] == 'yes' ? 'https' : 'http'
-    URI.join("#{protocol}://#{ENV['HOST']}", 'builds').to_s
+  def protocol
+    if Hound::HTTPS_ENABLED
+      "https"
+    else
+      "http"
+    end
+  end
+
+  def add_error(error)
+    error_message = ErrorMessageTranslation.from_error_response(error)
+    errors.push(error_message).compact!
   end
 end

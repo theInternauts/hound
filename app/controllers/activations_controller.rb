@@ -2,38 +2,34 @@ class ActivationsController < ApplicationController
   class FailedToActivate < StandardError; end
   class CannotActivatePaidRepo < StandardError; end
 
-  respond_to :json
-
-  before_action :check_repo_plan
+  before_action :ensure_repo_allowed
 
   def create
-    if activator.activate(repo, session[:github_token])
-      JobQueue.push(OrgInvitationJob)
-      analytics.track_activated(repo)
+    if activator.activate
       render json: repo, status: :created
     else
-      report_exception(
-        FailedToActivate.new('Failed to activate repo'),
-        user_id: current_user.id,
-        repo_id: params[:repo_id]
-      )
-      head 502
+      analytics.track_repo_activation_failed(repo)
+      render json: { errors: activator.errors }, status: 502
     end
   end
 
   private
 
+  def ensure_repo_allowed
+    if repo.private? && !repo.owner.whitelisted?
+      raise CannotActivatePaidRepo
+    end
+  end
+
+  def activator
+    @activator ||= RepoActivator.new(repo: repo, github_token: github_token)
+  end
+
   def repo
     @repo ||= current_user.repos.find(params[:repo_id])
   end
 
-  def activator
-    RepoActivator.new
-  end
-
-  def check_repo_plan
-    if repo.plan_price > 0
-      raise CannotActivatePaidRepo
-    end
+  def github_token
+    current_user.token
   end
 end

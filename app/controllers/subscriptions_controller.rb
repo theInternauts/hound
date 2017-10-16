@@ -1,53 +1,53 @@
 class SubscriptionsController < ApplicationController
   class FailedToActivate < StandardError; end
 
-  before_action :update_email_address
-
-  respond_to :json
+  before_action :check_subscription_presence, only: :destroy
+  before_action :update_email
 
   def create
-    if activator.activate(repo, github_token) && create_subscription
-      JobQueue.push(OrgInvitationJob)
-      analytics.track_subscribed(repo)
+    if current_user.plan_upgrade?
+      render json: {}, status: :payment_required
+    elsif activator.activate && create_subscription
       render json: repo, status: :created
     else
-      activator.deactivate(repo, github_token)
-      report_activation_error("Failed to subscribe and activate repo")
+      activator.deactivate
+
+      head 502
+    end
+  end
+
+  def update
+    if activator.activate && create_subscription
+      render json: repo, status: :created
+    else
+      activator.deactivate
       head 502
     end
   end
 
   def destroy
-    repo = current_user.repos.find(params[:repo_id])
+    if activator.deactivate && delete_subscription
+      analytics.track_repo_deactivated(repo)
 
-    if activator.deactivate(repo, session[:github_token]) && delete_subscription
-      analytics.track_unsubscribed(repo)
       render json: repo, status: :created
     else
-      report_activation_error("Failed to unsubscribe and deactivate repo")
       head 502
     end
   end
 
   private
 
-  def report_activation_error(message)
-    report_exception(
-      FailedToActivate.new(message),
-      user_id: current_user.id, repo_id: params[:repo_id]
-    )
+  def activator
+    RepoActivator.new(repo: repo, github_token: github_token)
   end
 
   def repo
-    @repo ||= current_user.repos.find(params[:repo_id])
+    @repo ||= current_user.repos.find_by(id: params.fetch(:repo_id)) ||
+      current_user.subscribed_repos.find(params.fetch(:repo_id))
   end
 
   def github_token
-    session[:github_token]
-  end
-
-  def activator
-    RepoActivator.new
+    current_user.token
   end
 
   def create_subscription
@@ -58,9 +58,18 @@ class SubscriptionsController < ApplicationController
     RepoSubscriber.unsubscribe(repo, repo.subscription.user)
   end
 
-  def update_email_address
-    if current_user.email_address.blank?
-      current_user.update(email_address: params[:email_address])
+  def check_subscription_presence
+    if repo.subscription.blank?
+      render(
+        json: { errors: ["No subscription exists for this repo"] },
+        status: :conflict
+      )
+    end
+  end
+
+  def update_email
+    if current_user.email.blank?
+      current_user.update(email: params[:email])
     end
   end
 end

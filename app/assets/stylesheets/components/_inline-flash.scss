@@ -1,0 +1,15 @@
+.inline-flash {
+  margin: 0;
+}
+
+.inline-flash--visible {
+  display: block;
+}
+
+.inline-flash--success {
+  color: darken($green, 20%);
+}
+
+.inline-flash--error {
+  color: $red;
+}

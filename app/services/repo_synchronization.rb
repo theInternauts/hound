@@ -1,29 +1,54 @@
 class RepoSynchronization
-  ORGANIZATION_TYPE = 'Organization'
-
-  pattr_initialize :user, :github_token
+  pattr_initialize :user
   attr_reader :user
-
-  def api
-    @api ||= GithubApi.new(github_token)
-  end
 
   def start
     user.repos.clear
+    repos = api.repos
 
-    api.repos.each do |resource|
-      attributes = repo_attributes(resource.to_hash)
-      user.repos << Repo.find_or_create_with(attributes)
+    Repo.transaction do
+      repos.each do |resource|
+        begin
+          create_user_membership_from!(resource)
+        rescue ActiveRecord::RecordNotUnique
+          next
+        end
+      end
     end
   end
 
   private
 
+  def create_user_membership_from!(resource)
+    attributes = repo_attributes(resource.to_hash)
+    repo = Repo.find_or_create_with(attributes)
+    user.memberships.create!(
+      repo: repo,
+      admin: resource.to_hash[:permissions][:admin],
+    )
+  end
+
+  def api
+    @api ||= GithubApi.new(user.token)
+  end
+
   def repo_attributes(attributes)
-    attributes.slice(:private).merge(
+    owner = upsert_owner(attributes[:owner])
+
+    {
+      private: attributes[:private],
       github_id: attributes[:id],
-      full_github_name: attributes[:full_name],
-      in_organization: attributes[:owner][:type] == ORGANIZATION_TYPE
+      name: attributes[:full_name],
+      in_organization: attributes[:owner][:type] == GithubApi::ORGANIZATION_TYPE,
+      owner: owner,
+    }
+  end
+
+  def upsert_owner(owner_attributes)
+    Owner.upsert(
+      github_id: owner_attributes[:id],
+      name: owner_attributes[:login],
+      organization: owner_attributes[:type] == GithubApi::ORGANIZATION_TYPE
     )
   end
 end

@@ -1,10 +1,14 @@
-= render 'shared/header'
+- content_for :page_title, 'Your Repos'
 
-:javascript
-  Settings = {
-    stripePublishableKey: '#{ENV['STRIPE_PUBLISHABLE_KEY']}',
-    userEmailAddress: '#{current_user.email_address}'
-  };
+= render 'settings'
 
-.repo-listing{ 'repo-list' => '' }
-= render 'preload_template', template: 'repo_list'
+- if display_onboarding?
+  = render 'onboarding'
+
+%section.organization-list{ 'organization-list' => '' }
+
+= javascript_pack_tag("repos_container")
+= react_component("ReposContainer",
+  has_private_access: current_user.has_access_to_private_repos?,
+  userHasCard: current_user.stripe_customer_id.present?,
+)

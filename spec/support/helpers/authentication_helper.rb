@@ -1,18 +1,12 @@
 module AuthenticationHelper
-  GITHUB_TOKEN = 'githubtoken'
-
-  def stub_sign_in(user = create(:user))
+  def stub_sign_in(user)
+    user.update(token: "letmein")
     session[:remember_token] = user.remember_token
-    session[:github_token] = GITHUB_TOKEN
   end
 
-  def sign_in_as(user, params = {})
-    stub_oauth(
-      username: user.github_username,
-      email: user.email_address,
-      token: GITHUB_TOKEN
-    )
-    visit root_path(params)
+  def sign_in_as(user, token = "letmein")
+    stub_oauth(username: user.username, email: user.email, token: token)
+    visit root_path
     click_link(I18n.t('authenticate'), match: :first)
   end
 end

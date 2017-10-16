@@ -1,14 +1,8 @@
-@import 'bourbon';
-@import 'neat';
-@import 'normalize';
-@import 'font-awesome';
+@import "bourbon";
+@import "neat";
+@import "normalize-css";
 
-@import 'variables';
-@import 'animations';
-@import 'base';
-@import 'sessions-new';
-@import 'repo-list';
-@import 'account';
-
-@import 'shared/footer';
-@import 'header';
+@import "base/base";
+@import "components/components";
+@import "pages/pages";
+@import "utilities/utilities";

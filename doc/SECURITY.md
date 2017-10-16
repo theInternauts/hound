@@ -9,16 +9,16 @@ Because [Hound is open source][oss],
 in this document we refer to portions of the application code and its dependent
 libraries, frameworks, and programming languages.
 
-[oss]: https://github.com/thoughtbot/hound
+[oss]: https://github.com/houndci/hound
 
 Vulnerability Reporting
 -----------------------
 
 For security inquiries or vulnerability reports, please email
-[security@thoughtbot.com](security@thoughtbot.com).
+<security@thoughtbot.com>.
 If you'd like, you can use our [PGP key] when reporting vulnerabilities.
 
-[PGP key]: http://pgp.thoughtbot.com
+[PGP key]: https://thoughtbot.com/thoughtbot.asc
 
 thoughtbot
 ----------
@@ -38,7 +38,8 @@ What happens when you authenticate your GitHub account
 ------------------------------------------------------
 
 Hound uses the [OmniAuth GitHub] Ruby gem to
-authenticate your GitHub account using [GitHub's OAuth2 flow][gh-oauth].
+authenticate your GitHub account using [GitHub's OAuth2 flow][gh-oauth]
+and provide Hound with a GitHub token.
 
 [OmniAuth GitHub]: https://github.com/intridea/omniauth-github
 [gh-oauth]: https://developer.github.com/v3/oauth/
@@ -46,20 +47,22 @@ authenticate your GitHub account using [GitHub's OAuth2 flow][gh-oauth].
 Using OAuth2 means we do not access your GitHub password
 and that you can revoke our access at any time.
 
-We store your GitHub token in your web browser's session cookie.
-We do not store this GitHub token in our PostgreSQL database.
-
-We need this token in order to refresh your GitHub repositories with Hound,
-which we do once, immediately after you authenticate your GitHub account.
-Later, you can manually refresh your GitHub repositories with Hound at any time.
+Your GitHub token is needed in order to fetch file content, comments, repo
+information and update Pull Request status. This token is encrypted and encoded
+using `ActiveSupport::MessageEncryptor` and stored in our Postgres database on Heroku.
+`ActiveSupport::MessageEncryptor` [uses `aes-256-cbc`][message-encryptor]
+for encryption and base64 for encoding.
 
 To browse the portions of the codebase related to authentication,
 try `grep`ing for the following terms:
 
 ```bash
 grep -R omniauth app
-grep -R github_token app
+grep -R token app
 ```
+
+[message-encryptor]:
+https://github.com/rails/rails/blob/2af7338bdf32790a28e388a99dada84db0af1b5f/activesupport/lib/active_support/message_encryptor.rb#L35
 
 What happens when Hound refreshes your GitHub repositories
 ----------------------------------------------------------
@@ -67,6 +70,20 @@ What happens when Hound refreshes your GitHub repositories
 We pass your GitHub token to our [Ruby on Rails] app
 (the app whose source code you are reading right now),
 which runs on [Heroku].
+
+Our app passes your GitHub token from memory in
+[`RepoSyncsController`] to our [Redis] database,
+as part of scheduling a background job ([`RepoSynchronizationJob`]).
+The Redis database is hosted by [Redis to Go].
+
+[`RepoSyncsController`]: ../app/controllers/repo_syncs_controller.rb
+[`RepoSynchronizationJob`]: ../app/jobs/repo_synchronization_job.rb
+[Redis]: http://redis.io/
+[Redis to Go]: http://redistogo.com
+
+As part of this process,
+we temporarily store your GitHub token in the Redis database
+when enqueueing a Resque job to fetch a list of your repos.
 
 [Ruby on Rails]: http://rubyonrails.org
 [Heroku]: https://www.heroku.com
@@ -84,7 +101,7 @@ Refreshing your GitHub repos allows you to later enable Hound on those repos.
 What happens when you enable Hound on your GitHub repository
 ------------------------------------------------------------
 
-When you click the "toggle" switch in the Hound web interface
+When you click the "Activate" button in the Hound web interface
 for one of your private GitHub repositories,
 we send your GitHub token from the web browser's session
 to the Ruby process on Heroku
@@ -92,21 +109,12 @@ through the [`SubscriptionsController`].
 
 [`SubscriptionsController`]: ../app/controllers/subscriptions_controller.rb
 
-Our Ruby process passes your GitHub token from memory in
-[`RepoSynchronizationJob`] to our [Redis] database.
-The database is hosted by [Redis to Go].
-
-[`RepoSynchronizationJob`]: ../app/jobs/repo_synchronization_job.rb
-[Redis]: http://redis.io/
-[Redis to Go]: http://redistogo.com
-
-This is the only time we temporarily store your GitHub token.
-
 We use your GitHub token to add the [@houndci] GitHub user to your repository
-via the [GitHub collaborator API][api1].
-@houndci is added to a "Services" team within your organization
-and creates the "Services" team if it doesn't exist.
-Your GitHub user will need admin privileges for that repository.
+via the [GitHub collaborator API][api1]. @houndci will be added to a team that
+has access to the enabled repository. If an existing team cannot be found, we'll
+create a "Services" team with *push* access to the enabled repository. This is
+necessary for @houndci to see pull requests, make comments, and update pull
+request statuses.
 
 [@houndci]: https://github.com/houndci
 [api1]: https://developer.github.com/v3/repos/collaborators/#add-collaborator
@@ -176,23 +184,27 @@ The payload is stored in Redis so that
 and back into Ruby memory on Heroku.
 Using the information from the payload,
 it makes a new HTTP request to GitHub's API to get
-the pull request's diff and file contents.
+the pull request's patch and file contents.
 Hound never fetches a complete version of your codebase.
 
 In Ruby memory,
 `BuildRunner` passes your pull request's contents to [`StyleChecker`],
-which loops through the changes files and delegates to the appropriate
+which loops through the changed files and delegates to the appropriate
 [`StyleGuide`] Ruby classes based on file extension (`.rb`, `.js`, etc.).
 
 [`StyleChecker`]: ../app/models/style_checker.rb
-[`StyleChecker`]: ../app/models/style_guide
+[`StyleGuide`]: ../app/models/style_guide
 
 The `StyleGuide` classes wrap the language-specific open source libraries
 that we use to check the style of the code in each pull request notification:
 
 * Ruby: [RuboCop](https://github.com/bbatsov/rubocop)
 * CoffeeScript: [CoffeeLint](http://www.coffeelint.org/)
-* JavaScript: [JSHint](https://github.com/jshint/jshint/)
+* JavaScript: 
+  * [JSHint](https://github.com/jshint/jshint)
+  * [ESLint](https://github.com/eslint/eslint)
+* SCSS: [SCSS-Lint](https://github.com/brigade/scss-lint)
+* Go: [golint](https://github.com/golang/lint)
 
 Those libraries find style violations
 and pass them back up through `StyleGuide` and `BuildRunner`.
@@ -208,10 +220,9 @@ to comment about the violations on the pull request.
 `BuildRunner` also saves the violations,
 the pull request number,
 and the commit SHA in the `builds` table of our Postgres database.
-This saves a few lines of your code around the diff,
-with a reference to where the violation happened.
-We do this to make our debugging sessions easier.
-We do not save in Postgres the whole diff from the pull request.
+This saves the line number and a reference line number to GitHub's patch.
+We do not save any of your code in Postgres, or Redis.
+It only lives in the memory of the Ruby process.
 
 To browse the portions of the codebase related to
 receiving and processing pull request notifications,
@@ -237,10 +248,7 @@ What you can do to make your Hound use safer
 --------------------------------------------
 
 Use environment variables in your code
-to [separate code from configuration][12factor]
-so we won't accidentally store any credentials or
-other sensitive configuration from your app
-in our `builds` table.
+to [separate code from configuration][12factor].
 
 [12factor]: http://12factor.net/config
 

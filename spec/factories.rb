@@ -1,10 +1,43 @@
 FactoryGirl.define do
-  factory :build do
-    repo
+  sequence(:github_id)
+  sequence(:github_name) { |n| "github_name#{n}" }
 
-    trait :failed_build do
-      violations ['WhitespaceRule on line 34 of app/models/user.rb']
+  factory :blacklisted_pull_request do
+    sequence(:full_repo_name) { |n| "user/repo#{n}" }
+    sequence(:pull_request_number)
+  end
+
+  factory :build do
+    sequence(:pull_request_number)
+    commit_sha "somesha"
+    repo
+  end
+
+  factory :file_review do
+    trait :completed do
+      completed_at Time.zone.now
     end
+
+    build
+
+    filename "the_thing.rb"
+    linter_name "ruby"
+  end
+
+  factory :plan do
+    id "tier1"
+    price 49
+    range 1..4
+    title "Chihuahua"
+
+    trait :plan2 do
+      id "tier2"
+      price 99
+      range 5..10
+      title "Labrador"
+    end
+
+    initialize_with { new(id: id, price: price, range: range, title: title) }
   end
 
   factory :repo do
@@ -15,34 +48,26 @@ FactoryGirl.define do
       in_organization true
       private true
     end
+    trait(:private) { private true }
 
-    sequence(:full_github_name) { |n| "user/repo#{n}" }
-    sequence(:github_id) { |n| n }
+    sequence(:name) { |n| "user/repo#{n}" }
+    github_id
+    owner
+
     private false
     in_organization false
-
-    after(:create) do |repo|
-      if repo.users.empty?
-        repo.users << create(:user)
-      end
-    end
   end
 
   factory :user do
-    sequence(:github_username) { |n| "github#{n}" }
+    username { generate(:github_name) }
 
-    ignore do
-      repos []
-    end
-
-    after(:build) do |user, evaluator|
-      if evaluator.repos.any?
-        user.repos += evaluator.repos
-      end
-    end
+    trait(:with_github_scopes) { token_scopes "public_repo,user:email" }
+    trait(:stripe) { stripe_customer_id "cus_2e3fqARc1uHtCv" }
   end
 
   factory :membership do
+    trait(:admin) { admin true }
+
     user
     repo
   end
@@ -52,8 +77,21 @@ FactoryGirl.define do
 
     sequence(:stripe_subscription_id) { |n| "stripesubscription#{n}" }
 
-    price { repo.plan_price }
-    repo
+    association :repo, :active, :private
+    price Plan::PLANS[1][:price]
     user
+  end
+
+  factory :violation do
+    file_review
+
+    patch_position 1
+    line_number 42
+    messages ["Trailing whitespace detected."]
+  end
+
+  factory :owner do
+    github_id
+    name { generate(:github_name) }
   end
 end

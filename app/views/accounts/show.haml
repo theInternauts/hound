@@ -1,41 +1,79 @@
-= render 'shared/header'
+- content_for :page_title, "Your Account"
+
+= render 'settings'
 
 %section.account-section
-  %h2.label-text Your monthly cost
+  %aside.account-nav
+    %h3
+      Plans
 
-  .account-content.account-breakdown
-    %table
-      %thead
-        %tr
-          %th.label-text Description
-          %th.label-text Base Cost
-          %th.label-text Quantity
-          %th.label-text Subtotal
-        - @account_page.monthly_line_items.each do |line_item|
+    - @account_page.plans.each do |plan|
+      = render("shared/plan_vertical",
+          allowance: plan.allowance,
+          current: plan.current?,
+          name: plan.title,
+          new: plan.next?,
+          price: plan.price,
+        )
+
+  .account-content
+    %article.billing-breakdown
+      = javascript_pack_tag "update_account_credit_card"
+      = react_component("UpdateAccountCreditCard",
+          stripe_customer_id_present: current_user.stripe_customer_id.present?,
+        )
+      %table.itemized-receipt
+        %thead
+          %tr
+            %th Plan
+            %th Allowance
+            %th Remaining
+            %th Subtotal
+        %tbody
           %tr
             %td
-              = line_item.title
+              = @account_page.plan
             %td
-              = line_item.base_price
+              = @account_page.allowance
             %td
-              = line_item.quantity
+              = @account_page.remaining
             %td
-              = line_item.subtotal
-    %dl
-      %dt.label-text Total Monthly Cost
-      %dd
-        = @account_page.total_monthly_cost
+              = number_to_currency(@account_page.total_monthly_cost,
+                  precision: 0,
+                )
 
-%section.account-section
-  %h2.label-text Active private repos billed to you
+      %table.monthly-total
+        %thead
+          %tr
+            %th
+              %label Total Monthly Cost:
+            %th.total-amount
+              %label
+                = number_to_currency(@account_page.total_monthly_cost,
+                    precision: 0,
+                  )
 
-  .account-content.repos-breakdown
-    - if @account_page.repos.any?
-      %ul.private-repos
-        - @account_page.repos.each do |repo|
-          %li.repo
-            %span.repo-name{ "ng-class" => "{private: #{repo.private}}" }
-              = repo.full_github_name
-    - else
-      %p.empty-state-message
-        You have no private repos billed to you
+    - if current_user.stripe_customer_id.present?
+      = javascript_pack_tag "update_account_email"
+      = react_component("UpdateAccountEmail",
+          billable_email: @account_page.billable_email,
+        )
+    %article.active-private-repos
+      - if @account_page.repos.any?
+        %h3 Active Private Repos
+        %table
+          %thead
+            %tr
+              %th Repository
+              %th Reviews given
+              %th Violations caught
+          %tbody
+            - @account_page.repos.each do |repo|
+              %tr.repo
+                %td
+                  %span.repo-name
+                    = repo.name
+                %td.reviews-given
+                  = repo.builds.count
+                %td.violations-caught
+                  = repo.total_violations

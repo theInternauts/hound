@@ -1,0 +1,52 @@
+.docs {
+  border: $base-border;
+  border-radius: $base-border-radius;
+  display: flex;
+  padding: $medium-spacing;
+
+  @include media($small-screen-only) {
+    margin-top: 0;
+  }
+
+  @include media($large-screen-up) {
+    flex-flow: row nowrap;
+  }
+}
+
+.docs-article {
+  margin-bottom: $large-spacing;
+
+  &:not(:first-child) {
+    border-top: 1px dotted $base-border-color;
+    padding-top: $large-spacing;
+  }
+}
+
+.docs-content {
+  @include media($medium-screen-up) {
+    border-left: $base-border;
+    flex: 1;
+    padding-left: $medium-spacing;
+  }
+}
+
+.docs-nav {
+  display: none;
+
+  @include media($medium-screen-up) {
+    display: block;
+    padding-right: $medium-spacing;
+    width: 25%;
+  }
+}
+
+.docs-nav-link {
+  color: $base-font-color;
+  display: block;
+  padding: $small-spacing 0;
+  text-align: right;
+
+  &:hover {
+    color: $base-accent-color;
+  }
+}

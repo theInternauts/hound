@@ -1,31 +1,38 @@
 class MonthlyLineItem
-  include ActionView::Helpers::NumberHelper
+  vattr_initialize :subscription
 
-  def initialize(price, repos)
-    @price = price
-    @repos = repos
+  def subtotal_in_dollars
+    amount_in_dollars
   end
 
-  def title
-    case @repos.first.subscription_price
-    when 9
-      "Private Personal Repos"
-    when 12
-      "Private Repos"
-    when 24
-      "Private Org Repos"
+  private
+
+  def amount_in_dollars
+    amount = (@subscription.plan_amount - discounted_amount) / 100
+    amount * discounted_percent_multiplier
+  end
+
+  def discounted_percent_multiplier
+    1.0 - (discounted_percent / 100)
+  end
+
+  def discounted_amount
+    coupon.amount_off || 0
+  end
+
+  def discounted_percent
+    (coupon.percent_off || 0).to_f
+  end
+
+  def discount
+    @subscription.discount || PaymentGatewayCustomer::NoDiscount.new
+  end
+
+  def coupon
+    if discount.coupon.valid
+      discount.coupon
+    else
+      PaymentGatewayCustomer::NoCoupon.new
     end
-  end
-
-  def base_price
-    "#{number_to_currency(@price, precision: 0)}/mo."
-  end
-
-  def quantity
-    "x#{@repos.count}"
-  end
-
-  def subtotal
-    number_to_currency(@repos.sum(&:subscription_price), precision: 0)
   end
 end

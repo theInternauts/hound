@@ -1,13 +1,15 @@
-require "fast_spec_helper"
+require "rails_helper"
 require "app/models/pull_request"
 require "app/models/commit"
 require "lib/github_api"
 
 describe PullRequest do
+  let(:token) { "some_github_token" }
+
   describe "#opened?" do
     context "when payload action is opened" do
       it "returns true" do
-        pull_request = PullRequest.new(payload_stub(action: "opened"), "token")
+        pull_request = PullRequest.new(payload_stub(action: "opened"), token)
 
         expect(pull_request).to be_opened
       end
@@ -16,7 +18,7 @@ describe PullRequest do
     context "when payload action is not opened" do
       it "returns false" do
         payload = payload_stub(action: "notopened")
-        pull_request = PullRequest.new(payload, "token")
+        pull_request = PullRequest.new(payload, token)
 
         expect(pull_request).not_to be_opened
       end
@@ -27,7 +29,7 @@ describe PullRequest do
     context "when payload action is synchronize" do
       it "returns true" do
         payload = payload_stub(action: "synchronize")
-        pull_request = PullRequest.new(payload, "token")
+        pull_request = PullRequest.new(payload, token)
 
         expect(pull_request).to be_synchronize
       end
@@ -36,7 +38,7 @@ describe PullRequest do
     context "when payload action is not synchronize" do
       it "returns false" do
         payload = payload_stub(action: "notsynchronize")
-        pull_request = PullRequest.new(payload, "token")
+        pull_request = PullRequest.new(payload, token)
 
         expect(pull_request).not_to be_synchronize
       end
@@ -45,7 +47,7 @@ describe PullRequest do
 
   describe "#comments" do
     it "returns comments on pull request" do
-      filename = "spec/models/style_guide_spec.rb"
+      filename = "spec/models/linter_spec.rb"
       comment = double(:comment, position: 7, path: filename)
       github = double(:github, pull_request_comments: [comment])
       pull_request = pull_request_stub(github)
@@ -57,23 +59,72 @@ describe PullRequest do
     end
   end
 
-  describe "#add_comment" do
-    it "posts a comment to GitHub for the Hound user" do
+  describe "#make_comments" do
+    it "posts a review with comments to GitHub as the Hound user" do
       payload = payload_stub
-      github = double(:github_client, add_comment: nil)
+      github = instance_double("GithubApi", create_pull_request_review: nil)
       pull_request = pull_request_stub(github, payload)
       violation = violation_stub
-      commit = double("Commit")
+      review_errors = ["invalid config", "foo\n  bar"]
+
+      pull_request.make_comments([violation], review_errors)
+
+      expect(github).to have_received(:create_pull_request_review).with(
+        "org/repo",
+        payload.pull_request_number,
+        [
+          {
+            path: violation.filename,
+            position: violation.patch_position,
+            body: violation.messages.join,
+          },
+        ],
+        <<~EOS.chomp
+          Some files could not be reviewed due to errors:
+          <details>
+          <summary>invalid config</summary>
+          <pre>invalid config</pre>
+          </details>
+          <details>
+          <summary>foo</summary>
+          <pre>foo
+            bar</pre>
+          </details>
+        EOS
+      )
+    end
+  end
+
+  describe "#commit_files" do
+    it "does not include removed files" do
+      added_github_file = double(
+        filename: "foo.rb",
+        status: "added",
+        patch: "patch"
+      )
+      modified_github_file = double(
+        filename: "baz.rb",
+        status: "modified",
+        patch: "patch"
+      )
+      removed_github_file = double(
+        filename: "bar.rb",
+        status: "removed"
+      )
+      all_github_files = [
+        added_github_file,
+        removed_github_file,
+        modified_github_file
+      ]
+      github = double(:github, pull_request_files: all_github_files)
+      pull_request = pull_request_stub(github)
+      commit = double("Commit", file_content: "content", sha: "abc123")
       allow(Commit).to receive(:new).and_return(commit)
 
-      pull_request.add_comment(violation)
+      commit_files = pull_request.commit_files
 
-      expect(github).to have_received(:add_comment).with(
-        pull_request_number: payload.pull_request_number,
-        commit: commit,
-        comment: violation.messages.first,
-        filename: violation.filename,
-        patch_position: violation.patch_position,
+      expect(commit_files.map(&:filename)).to match_array(
+        [added_github_file.filename, modified_github_file.filename]
       )
     end
   end
@@ -98,6 +149,6 @@ describe PullRequest do
 
   def pull_request_stub(api, payload = payload_stub)
     allow(GithubApi).to receive(:new).and_return(api)
-    PullRequest.new(payload, "github-token")
+    PullRequest.new(payload, token)
   end
 end

@@ -1,18 +1,26 @@
-class Build < ActiveRecord::Base
+class Build < ApplicationRecord
   belongs_to :repo
+  belongs_to :user
+  has_many :file_reviews, dependent: :destroy
+  has_many :violations, through: :file_reviews
 
   before_create :generate_uuid
 
   validates :repo, presence: true
 
-  serialize :violations, Array
+  delegate :name, to: :repo, prefix: true
 
-  def status
-    if violations.any?
-      'failed'
-    else
-      'passed'
-    end
+  def completed?
+    file_reviews.where(completed_at: nil).empty?
+  end
+
+  def user_token
+    (user && user.token) || Hound::GITHUB_TOKEN
+  end
+
+  def review_errors
+    file_reviews.where.not(error: [nil, ""]).pluck("DISTINCT error").
+      uniq { |error| error.lines.first }
   end
 
   private

@@ -1,29 +1,17 @@
-# Hold file, line, and violation message values.
+# Hold file, line number, and violation message values.
 # Built by style guides.
 # Printed by Commenter.
-class Violation
-  attr_reader :line_number, :filename
+class Violation < ApplicationRecord
+  belongs_to :file_review
 
-  def initialize(file, line_number, message)
-    @filename = file.filename
-    @line = file.line_at(line_number)
-    @line_number = line_number
-    @messages = [message]
-  end
+  delegate :count, to: :messages, prefix: true
+  delegate :filename, to: :file_review
 
-  def add_messages(messages)
-    @messages += messages
+  def add_message(message)
+    self[:messages] << message
   end
 
   def messages
-    @messages.uniq
-  end
-
-  def patch_position
-    @line.patch_position
-  end
-
-  def on_changed_line?
-    @line.changed?
+    self[:messages].uniq
   end
 end

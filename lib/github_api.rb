@@ -1,45 +1,29 @@
+# frozen_string_literal: true
+require "attr_extras"
 require "octokit"
 require "base64"
-require "active_support/core_ext/object/with_options"
 
 class GithubApi
-  SERVICES_TEAM_NAME = "Services"
-  PREVIEW_MEDIA_TYPE =
-    ::Octokit::Client::Organizations::ORG_INVITATIONS_PREVIEW_MEDIA_TYPE
+  ORGANIZATION_TYPE = "Organization"
+  PREVIEW_API_HEADER = "application/vnd.github.black-cat-preview+json"
 
-  pattr_initialize :token
+  attr_reader :file_cache, :token
 
-  def client
-    @client ||= Octokit::Client.new(access_token: token, auto_paginate: true)
+  def initialize(token)
+    @token = token
+    @file_cache = {}
+  end
+
+  def scopes
+    client.scopes(token).join(",")
   end
 
   def repos
-    user_repos + org_repos
-  end
-
-  def add_user_to_repo(username, repo_name)
-    repo = repo(repo_name)
-
-    if repo.organization
-      add_user_to_org(username, repo)
-    else
-      client.add_collaborator(repo.full_name, username)
-    end
+    client.repos
   end
 
   def repo(repo_name)
     client.repository(repo_name)
-  end
-
-  def add_comment(options)
-    client.create_pull_request_comment(
-      options[:commit].repo_name,
-      options[:pull_request_number],
-      options[:comment],
-      options[:commit].sha,
-      options[:filename],
-      options[:patch_position]
-    )
   end
 
   def create_hook(full_repo_name, callback_endpoint)
@@ -74,13 +58,17 @@ class GithubApi
   end
 
   def pull_request_comments(full_repo_name, pull_request_number)
-    paginate do |page|
-      client.pull_request_comments(
-        full_repo_name,
-        pull_request_number,
-        page: page
-      )
-    end
+    client.pull_request_comments(full_repo_name, pull_request_number)
+  end
+
+  def create_pull_request_review(repo_name, pr_number, comments, body)
+    client.post(
+      "#{Octokit::Repository.path(repo_name)}/pulls/#{pr_number}/reviews",
+      accept: PREVIEW_API_HEADER,
+      event: "COMMENT",
+      body: body,
+      comments: comments,
+    )
   end
 
   def pull_request_files(full_repo_name, number)
@@ -88,135 +76,93 @@ class GithubApi
   end
 
   def file_contents(full_repo_name, filename, sha)
-    client.contents(full_repo_name, path: filename, ref: sha)
+    file_cache["#{full_repo_name}/#{sha}/#{filename}"] ||=
+      client.contents(full_repo_name, path: filename, ref: sha)
   end
 
-  def user_teams
-    client.user_teams
+  def create_pending_status(full_repo_name, sha, description)
+    create_status(
+      repo: full_repo_name,
+      sha: sha,
+      state: "pending",
+      description: description
+    )
   end
 
-  def accept_pending_invitations
-    with_preview_client do |preview_client|
-      pending_memberships =
-        preview_client.organization_memberships(state: "pending")
-      pending_memberships.each do |pending_membership|
-        preview_client.update_organization_membership(
-          pending_membership["organization"]["login"],
-          state: "active"
-        )
-      end
+  def create_success_status(full_repo_name, sha, description)
+    create_status(
+      repo: full_repo_name,
+      sha: sha,
+      state: "success",
+      description: description
+    )
+  end
+
+  def create_error_status(full_repo_name, sha, description, target_url = nil)
+    create_status(
+      repo: full_repo_name,
+      sha: sha,
+      state: "error",
+      description: description,
+      target_url: target_url
+    )
+  end
+
+  def accept_invitation(repo_name)
+    repo_invitation = find_invitation_for_repo(repo_name)
+
+    if repo_invitation
+      accept_repository_invitation(repo_invitation)
+    else
+      raise "Invitation for Hound to #{repo_name} not found"
     end
+  end
+
+  def add_collaborator(repo_name, username)
+    client.add_collaborator(repo_name, username)
+  end
+
+  def remove_collaborator(repo_name, username)
+    client.remove_collaborator(repo_name, username)
+  end
+
+  def repository?(repo_name)
+    client.repository?(repo_name)
+  rescue Octokit::Unauthorized
+    false
   end
 
   private
 
-  def add_user_to_org(username, repo)
-    repo_teams = client.repository_teams(repo.full_name)
-    admin_team = admin_access_team(repo_teams)
+  def client
+    @_client ||= Octokit::Client.new(access_token: token, auto_paginate: true)
+  end
 
-    if admin_team
-      add_user_to_team(username, admin_team.id)
-    else
-      add_user_and_repo_to_services_team(username, repo)
+  def create_status(repo:, sha:, state:, description:, target_url: nil)
+    client.create_status(
+      repo,
+      sha,
+      state,
+      context: "hound",
+      description: description,
+      target_url: target_url
+    )
+  end
+
+  def find_invitation_for_repo(repo_name)
+    invitations = client.user_repository_invitations(
+      accept: "application/vnd.github.swamp-thing-preview",
+    )
+    invitations.detect do |invitation|
+      invitation.repository.full_name == repo_name
     end
   end
 
-  def admin_access_team(repo_teams)
-    token_bearer = GithubUser.new(self)
-
-    repo_teams.detect do |repo_team|
-      token_bearer.has_admin_access_through_team?(repo_team.id)
-    end
-  end
-
-  def add_user_and_repo_to_services_team(username, repo)
-    team = find_team(SERVICES_TEAM_NAME, repo)
-
-    if team
-      client.add_team_repository(team.id, repo.full_name)
-    else
-      team = create_team(SERVICES_TEAM_NAME, repo)
-    end
-
-    add_user_to_team(username, team.id)
-  end
-
-  def add_user_to_team(username, team_id)
-    with_preview_client do |preview_client|
-      preview_client.add_team_membership(team_id, username)
-    end
-  rescue Octokit::NotFound
-    false
-  end
-
-  def find_team(name, repo)
-    client.org_teams(repo.organization.login).detect do |team|
-      team.name.downcase == name.downcase
-    end
-  end
-
-  def create_team(name, repo)
-    team_options = {
-      name: name,
-      repo_names: [repo.full_name],
-      permission: "pull"
-    }
-    client.create_team(repo.organization.login, team_options)
-  rescue Octokit::UnprocessableEntity => e
-    if team_exists_exception?(e)
-      find_team(name, repo)
-    else
-      raise
-    end
-  end
-
-  def user_repos
-    repos = paginate { |page| client.repos(nil, page: page) }
-    authorized_repos(repos)
-  end
-
-  def org_repos
-    repos = orgs.flat_map do |org|
-      paginate { |page| client.org_repos(org[:login], page: page) }
-    end
-
-    authorized_repos(repos)
-  end
-
-  def paginate
-    page = 1
-    results = []
-    all_pages_fetched = false
-
-    until all_pages_fetched do
-      page_results = yield(page)
-
-      if page_results.empty?
-        all_pages_fetched = true
-      else
-        results += page_results
-        page += 1
-      end
-    end
-
-    results
-  end
-
-  def orgs
-    client.orgs
-  end
-
-  def authorized_repos(repos)
-    repos.select { |repo| repo.permissions.admin }
-  end
-
-  def team_exists_exception?(exception)
-    exception.errors.any? do |error|
-      error[:field] == "name" && error[:code] == "already_exists"
-    end
-  end
-
-  def with_preview_client(&block)
-    client.with_options(accept: PREVIEW_MEDIA_TYPE, &block)
+  def accept_repository_invitation(invitation)
+    response = client.accept_repository_invitation(
+      invitation.id,
+      accept: "application/vnd.github.swamp-thing-preview",
+    )
+    response == ""
   end
 end

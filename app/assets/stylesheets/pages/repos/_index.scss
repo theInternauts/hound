@@ -1,0 +1,84 @@
+.repo {
+  @include clearfix;
+  align-items: center;
+  border-top: 1px solid $base-border-color;
+  display: flex;
+  padding: 1em;
+
+  @include media($small-screen-only) {
+    display: block;
+    height: auto;
+    padding: 1em 0;
+  }
+}
+
+.repo--active .repo-toggle {
+  background-color: $green;
+  border-color: darken($green, 30%);
+  color: darken($green, 40%);
+
+  &:hover {
+    background-color: $red;
+    border-color: $red;
+    color: $white;
+  }
+}
+
+.repo-name {
+  @include ellipsis;
+  color: $medium-font-color;
+  font-size: 1.5em;
+  line-height: 1;
+  padding-bottom: 2px;
+  transition: $base-transition;
+
+  @include media($small-screen-only) {
+    display: block;
+    font-size: 1.2em;
+    font-weight: $font-weight-regular;
+    margin-bottom: 0.6em;
+  }
+}
+
+.repo-activation-toggle {
+  align-self: flex-end;
+  height: 100%;
+  margin-left: auto;
+  padding-left: 1em;
+  text-align: right;
+  vertical-align: middle;
+
+  @include media($small-screen-only) {
+    display: block;
+    padding: 0;
+    text-align: left;
+  }
+}
+
+.repo-toggle {
+  background: rgba($purple, 0.1);
+  border: 2px solid $purple;
+  border-radius: 20px;
+  color: $purple;
+  display: inline-block;
+  font-weight: $font-weight-regular;
+  padding: 0.4em 1em;
+  text-align: center;
+  transition: none;
+  user-select: none;
+  vertical-align: middle;
+
+  @include media($small-screen-only) {
+    float: left;
+    padding: 0.2em 0.8em;
+  }
+
+  &:hover {
+    background-color: $purple;
+    color: $white;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+  }
+}

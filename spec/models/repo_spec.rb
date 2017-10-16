@@ -1,51 +1,16 @@
-require "spec_helper"
+require "rails_helper"
 
 describe Repo do
-  it { should have_many(:users).through(:memberships) }
   it { should have_many :builds }
-  it { should validate_presence_of :full_github_name }
   it { should validate_presence_of :github_id }
+  it { should belong_to :owner }
+  it { should have_many(:users).through(:memberships) }
+  it { should have_many(:memberships).dependent(:destroy) }
 
   it "validates uniqueness of github_id" do
     create(:repo)
 
     expect(subject).to validate_uniqueness_of(:github_id)
-  end
-
-  describe "#exempt?" do
-    context "when repo is exempt" do
-      it "returns true" do
-        repo = Repo.new(full_github_name: "thoughtbot/hound")
-
-        expect(repo).to be_exempt
-      end
-    end
-
-    context "when repo is not exempt" do
-      it "returns false" do
-        repo = Repo.new(full_github_name: "jimbob/hound")
-
-        expect(repo).not_to be_exempt
-      end
-    end
-
-    context "without exempt organizations" do
-      it "returns false" do
-        without_exempt_organizations
-
-        repo = Repo.new(full_github_name: "jimbob/hound")
-
-        expect(repo).not_to be_exempt
-      end
-    end
-
-    context "without full_github_name" do
-      it "returns false" do
-        repo = Repo.new(full_github_name: nil)
-
-        expect(repo).not_to be_exempt
-      end
-    end
   end
 
   describe "#stripe_subscription_id" do
@@ -63,24 +28,6 @@ describe Repo do
         repo = subscription.repo
 
         expect(repo.stripe_subscription_id).to eq "abc123"
-      end
-    end
-  end
-
-  describe "#plan_type" do
-    context "when repo is public" do
-      it "returns public plan type" do
-        repo = Repo.new(private: false)
-
-        expect(repo.plan_type).to eq "public"
-      end
-    end
-
-    context "when repo is private" do
-      it "returns private plan type" do
-        repo = Repo.new(private: true)
-
-        expect(repo.plan_type).to eq "private"
       end
     end
   end
@@ -106,43 +53,65 @@ describe Repo do
   end
 
   describe ".find_or_create_with" do
-    context "with existing repo" do
+    context "with existing github name" do
       it "updates attributes" do
-        repo = create(:repo)
+        repo = create(:repo, github_id: 1)
+        new_attributes = { github_id: 2, name: repo.name }
 
-        found_repo = Repo.find_or_create_with(github_id: repo.github_id)
+        Repo.find_or_create_with(new_attributes)
+        repo.reload
 
         expect(Repo.count).to eq 1
-        expect(found_repo).to eq repo
+        expect(repo.name).to eq new_attributes[:name]
+        expect(repo.github_id).to eq new_attributes[:github_id]
+      end
+    end
+
+    context "with existing github id" do
+      it "updates attributes" do
+        repo = create(:repo, name: "foo")
+        new_attributes = { github_id: repo.github_id, name: "bar" }
+
+        Repo.find_or_create_with(new_attributes)
+        repo.reload
+
+        expect(Repo.count).to eq 1
+        expect(repo.github_id).to eq new_attributes[:github_id]
+        expect(repo.name).to eq new_attributes[:name]
       end
     end
 
     context "with new repo" do
       it "creates repo with attributes" do
-        attributes = build(:repo).attributes
-        repo = Repo.find_or_create_with(attributes)
+        repo = Repo.find_or_create_with(attributes_for(:repo))
 
         expect(Repo.count).to eq 1
-        expect(repo).to be_present
+        expect(repo.reload).to be_present
+      end
+    end
+
+    context "when one repo has taken the github name and another taken id" do
+      it "updates relying on github_id as the source of truth" do
+        github_name = "foo/bar"
+        github_id = 40023
+        repo_with_id = create(:repo, github_id: github_id)
+        _repo_with_name = create(:repo, name: github_name)
+        new_attributes = { github_id: github_id, name: github_name }
+
+        Repo.find_or_create_with(new_attributes)
+
+        expect(repo_with_id.reload.name).to eq github_name
       end
     end
   end
 
-  describe ".find_and_update" do
-    context "when repo name doesn't match db record" do
-      it "updates the record" do
-        new_repo_name = "new/name"
-        repo = create(:repo, name: "foo/bar")
+  describe "#total_violations" do
+    it "returns a sum of all the violations for the repo" do
+      repo = create(:repo)
+      create(:build, violations_count: 5, repo: repo)
+      create(:build, violations_count: 3, repo: repo)
 
-        Repo.find_and_update(repo.github_id, new_repo_name)
-        repo.reload
-
-        expect(repo.full_github_name).to eq new_repo_name
-      end
+      expect(repo.total_violations).to eq 8
     end
-  end
-
-  def without_exempt_organizations
-    allow(ENV).to receive(:[]).with("EXEMPT_ORGS")
   end
 end
